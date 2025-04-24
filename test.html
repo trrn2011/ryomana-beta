@@ -45,11 +45,11 @@
 
 <script>
 /***** 設定 *****/
-const brideHeight  = 165; // ← 実数
-const groomHeight  = 180; // ← 実数
-const durationGroom = 5000; // ms
-const durationTotal = 8000; // ms
-const shrinkRate   = 0.3;
+const brideHeight  = 152.5; // ← 実数
+const groomHeight  = 180.3; // ← 実数
+const durationGroom = 10000; // ms
+const durationTotal = 13000; // ms
+const shrinkBase   = 0.4;    // 通常縮小率
 
 const guesses=[
   {name:"みき",guess:340},
@@ -108,14 +108,15 @@ function updateDiffs(){
   });
 }
 
-/***** アニメ *****/
-function animateBounce({start,target,amp,duration,onDone}){
+/***** アニメーション *****/
+function animateBounce({start,target,amp,duration,shrink,onDone}){
   const t0=performance.now();
   let lower=Math.max(minVal,Math.min(start,target)-amp);
   let upper=Math.min(maxVal,Math.max(start,target)+amp);
   let pos=start;
   let dir=(target>start)?1:-1;
   const speed=amp/35;
+  const s=shrink??shrinkBase;
   function frame(now){
     if(now-t0>=duration){
       marker.style.top=`${valToPercent(target)}%`;
@@ -123,7 +124,7 @@ function animateBounce({start,target,amp,duration,onDone}){
       onDone();return;
     }
     pos+=dir*speed;
-    if(dir===1&&pos>=upper){dir=-1;upper=Math.max(target,upper-(upper-target)*shrinkRate);} else if(dir===-1&&pos<=lower){dir=1;lower=Math.min(target,lower+(target-lower)*shrinkRate);} 
+    if(dir===1&&pos>=upper){dir=-1;upper=Math.max(target,upper-(upper-target)*s);} else if(dir===-1&&pos<=lower){dir=1;lower=Math.min(target,lower+(target-lower)*s);} 
     pos=Math.max(minVal,Math.min(maxVal,pos));
     marker.style.top=`${valToPercent(pos)}%`;
     numberDisplay.textContent=`${pos.toFixed(1)} cm`;
@@ -132,12 +133,12 @@ function animateBounce({start,target,amp,duration,onDone}){
   requestAnimationFrame(frame);
 }
 
-/***** 制御 *****/
-let phase=0; // 0: not started, 1: groom done, 2: finished
+/***** フェーズ制御 *****/
+let phase=0;
 controlBtn.addEventListener('click',()=>{
-  if(phase===0){ // start groom
+  if(phase===0){
     controlBtn.disabled=true;
-    animateBounce({start:minVal,target:groomHeight,amp:50,duration:durationGroom,onDone:()=>{
+    animateBounce({start:minVal,target:groomHeight,amp:50,duration:durationGroom,shrink:shrinkBase,onDone:()=>{
       groomBox.textContent=`新郎：${groomHeight.toFixed(1)} cm`;
       groomBox.classList.add('bg-blue-200');
       numberDisplay.classList.add('text-blue-700');
@@ -145,9 +146,9 @@ controlBtn.addEventListener('click',()=>{
       controlBtn.textContent='合計を発表！';
       controlBtn.disabled=false;
     }});
-  } else if(phase===1){ // start total
+  } else if(phase===1){
     controlBtn.disabled=true;
-    animateBounce({start:groomHeight,target:total,amp:45,duration:durationTotal,onDone:()=>{
+    animateBounce({start:groomHeight,target:total,amp:45,duration:durationTotal,shrink:shrinkBase*1.6,onDone:()=>{
       brideBox.textContent=`新婦：${brideHeight.toFixed(1)} cm`;
       brideBox.classList.add('bg-pink-200');
       numberDisplay.classList.replace('text-blue-700','text-green-600');
