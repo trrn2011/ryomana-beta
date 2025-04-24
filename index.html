@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>Reeler Demo</title>
+    <style>
+      /* --- simple full‑screen layout --- */
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: #05193c; /* same BG as wheel */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      canvas {
+        display: block; /* no extra scrollbars */
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Canvas where the wheel is rendered -->
+    <canvas id="wheel"></canvas>
+
+    <script type="module">
+      /*
+      Demo for the Reeler class
+      ─────────────────────────
+      1. Ensure reeler.js is placed in the same directory.
+      2. Open index.html in any modern browser (local file OK).
+    */
+      import { Reeler } from "./reeler.js";
+
+      // Test data (replace with sheet‑fetched list in production)
+      const items = [
+        "わたる",
+        "おかだ",
+        "金原",
+        "まな",
+        "良太",
+        "みちる",
+        "鈴木",
+        "川上",
+      ];
+
+      const reel = new Reeler("#wheel", items, {
+        font: '300px "Noto Sans JP", sans-serif',
+        lineSpacing: 1.3, // ← ここでお好みの値に
+      });
+
+      reel.startLoop(3000);
+      setTimeout(() => reel.spin(), 3000);
+
+      // Callback after stop
+      reel.onStop = (idx) => {
+        console.log("Winner:", items[idx]); // eslint-disable-line no-console
+      };
+    </script>
+  </body>
+</html>
