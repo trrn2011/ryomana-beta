@@ -34,24 +34,31 @@
 
       // Test data (replace with sheet‑fetched list in production)
       const items = [
-        "わたる",
-        "おかだ",
-        "金原",
-        "まな",
-        "良太",
-        "みちる",
-        "鈴木",
-        "川上",
+        "新郎中学友人",
+        "新婦中学友人",
+        "新郎高校友人",
+        "新婦高校友人",
+        "新郎大学バスケ部友人",
+        "新婦大学友人",
+        "新郎前職同期",
+        "新婦職場同期",
+        "新郎サークル友人",
+        "新婦サークル友人",
+        "新婦家族",
+        "新婦幼馴染",
       ];
 
       const reel = new Reeler("#wheel", items, {
-        font: '300px "Noto Sans JP", sans-serif',
+        font: '100px "Noto Sans JP", sans-serif',
+        fontWeight: 600,
         bg: "#003D72",
-        lineSpacing: 1.3,
+        lineSpacing: 1.5,
+        speed: 300,
         fadeGradientColor: "#000000", // もっと暗く
         fadeGradientAlpha: 1.0,
-        fadeGradientPower: 0.3, 
-        highlightDelay: 2000,// ← ここでお好みの値に
+        fadeGradientPower: 0.3,
+        highlightDelay: 2000,
+        direction: "down", // ← ここでお好みの値に
       });
 
       reel.startLoop(3000);

@@ -1,16 +1,11 @@
-// reeler.js – vertical roulette / reel class (v3.7  — constant‑to‑linear‑deceleration, no overshoot)
-// ---------------------------------------------------------------------------
-//  CHANGE SUMMARY (2025‑04‑25)
-//   • spin() で『等速 → 線形減速 → 停止』に完全固定。
-//     >>>  途中で速度がループ速度 (v0) を上回ることは絶対にありません。
-//   • v0 = 現在のループ速度 (this.speed)。
-//   • 目標距離 D = rotations*fullCycle + targetIdx * lineHeight.
-//   • 減速度 a = v0^2 / (2D)  （物理公式 v^2 = v0^2 − 2aD）
-//   • 停止時間 T = v0 / a  = 2D / v0.
-//   • tick() 中で t<=T の間:   s = v0*t − 0.5*a*t^2.
-//                             offset = s.
-//   • t>=T で mode → 'pause' → 'highlight' （既存ロジック）
-// ---------------------------------------------------------------------------
+// reeler.js – vertical roulette / reel class  (v3.8R9  — add fontWeight option)
+// -----------------------------------------------------------------------------
+//  SUMMARY (2025‑04‑25)
+//   • スクロール方向は固定で『上 → 下』（TOP → BOTTOM）。
+//   • NEW: `fontWeight` オプションを追加。
+//       - 例: `fontWeight: 'bold'`, `fontWeight: 600`, `fontWeight: 'normal'`
+//       - ctx.font には  "<weight> <font>" 形式で反映。
+// -----------------------------------------------------------------------------
 export class Reeler {
   constructor(canvasSel, items, opts = {}) {
     this.canvas =
@@ -22,6 +17,7 @@ export class Reeler {
     // Data & options ----------------------------------------------------
     this.items = items;
     this.font = opts.font || '120px "Noto Sans JP", sans-serif';
+    this.fontWeight = opts.fontWeight || ""; // ← NEW
     this.colors = opts.colors || ["#41ACF0", "#D793FF"];
     this.bg = opts.bg || "#05193C";
     this.speed = opts.speed || 1500; // px/s (loop speed)
@@ -41,15 +37,15 @@ export class Reeler {
 
     // Internal state ----------------------------------------------------
     this._mode = "loop";
-    this._startTime = null;
-    this._offset = 0; // scroll distance from origin (px)
+    this._prevTS = null;
+    this._offset = 0;
 
     // spin params
     this._targetIdx = 0;
     this._spinStart = null;
-    this._spinT = 0; // total time to stop
-    this._accel = 0; // deceleration magnitude (px/s^2, positive)
-    this._spinDist = 0; // total distance to cover (px)
+    this._spinT = 0;
+    this._accel = 0;
+    this._spinDist = 0;
 
     // Pause & highlight
     this._pauseStart = null;
@@ -65,7 +61,7 @@ export class Reeler {
   startLoop(speedPxPerSec) {
     if (speedPxPerSec) this.speed = speedPxPerSec;
     this._mode = "loop";
-    this._startTime = null;
+    this._prevTS = null;
     this._loopRAF ||= requestAnimationFrame((ts) => this._tick(ts));
   }
 
@@ -74,80 +70,69 @@ export class Reeler {
   }
 
   spin(targetIndex = null, { rotations = 6 } = {}) {
-    // pick random target if null
     this._targetIdx =
       targetIndex == null
         ? Math.floor(Math.random() * this.items.length)
         : targetIndex % this.items.length;
 
-    // Compute spin parameters -----------------------------------------
-    // total distance to travel so that targetIdx ends up at center
     this._spinDist =
       (rotations * this.items.length + this._targetIdx) * this._lineHeight;
 
-    const v0 = this.speed; // px/s (current loop speed)
-    this._accel = (v0 * v0) / (2 * this._spinDist); // positive value
-    this._spinT = v0 / this._accel; // time to stop (s)
+    const v0 = this.speed;
+    this._accel = (v0 * v0) / (2 * this._spinDist);
+    this._spinT = v0 / this._accel;
 
     this._spinStart = null;
     this._mode = "spin";
   }
 
-  onStop(idx) {
-    /* optional callback */
-  }
+  onStop(idx) {}
 
   /* Private helpers ---------------------------------------------------- */
   _resize() {
     this.canvas.width = window.innerWidth;
     this.canvas.height = window.innerHeight;
 
-    this.ctx.font = this.font;
+    this.ctx.font = (this.fontWeight ? this.fontWeight + " " : "") + this.font; // NEW
     const m = this.ctx.measureText("Hg");
     this._fontHeight = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
     this._lineHeight = this._fontHeight * this.lineSpacing;
   }
 
   _tick(ts) {
-    if (!this._startTime) this._startTime = ts;
-    const dtMs = ts - this._startTime;
-    const dt = dtMs / 1000; // seconds
+    if (!this._prevTS) this._prevTS = ts;
+    const dt = (ts - this._prevTS) / 1000;
 
+    const cycle = this._lineHeight * this.items.length;
     switch (this._mode) {
       case "loop":
         this._offset += this.speed * dt;
-        this._offset %= this._lineHeight * this.items.length;
+        this._offset %= cycle;
         break;
-
       case "spin":
         if (!this._spinStart) this._spinStart = ts;
-        const t = (ts - this._spinStart) / 1000; // seconds elapsed in spin
+        const t = (ts - this._spinStart) / 1000;
         if (t <= this._spinT) {
-          // s = v0*t − 0.5*a*t^2 (a positive)
           const s = this.speed * t - 0.5 * this._accel * t * t;
           this._offset = s;
         } else {
-          // arrive at final position
           this._offset = this._spinDist;
           this._mode = "pause";
           this._pauseStart = ts;
         }
         break;
-
       case "pause":
         if (ts - this._pauseStart >= this.highlightDelay) {
           this._mode = "highlight";
           this._highlightStart = ts;
         }
         break;
-
       case "highlight":
-        // nothing changes in offset; handle zoom timing in _draw()
         break;
     }
 
     this._draw(ts);
-    this._startTime = ts;
+    this._prevTS = ts;
     if (this._mode !== "idle")
       this._loopRAF = requestAnimationFrame((t) => this._tick(t));
   }
@@ -158,7 +143,7 @@ export class Reeler {
     ctx.fillStyle = this.bg;
     ctx.fillRect(0, 0, W, H);
 
-    /* vignette -------------------------------------------------------- */
+    /* vignette */
     if (this.fadeGradientAlpha > 0) {
       const gradTop = ctx.createLinearGradient(0, 0, 0, H / 2);
       gradTop.addColorStop(
@@ -168,7 +153,6 @@ export class Reeler {
       gradTop.addColorStop(1, this._rgba(this.fadeGradientColor, 0));
       ctx.fillStyle = gradTop;
       ctx.fillRect(0, 0, W, H / 2);
-
       const gradBot = ctx.createLinearGradient(0, H / 2, 0, H);
       gradBot.addColorStop(0, this._rgba(this.fadeGradientColor, 0));
       gradBot.addColorStop(
@@ -179,14 +163,14 @@ export class Reeler {
       ctx.fillRect(0, H / 2, W, H / 2);
     }
 
-    /* text ------------------------------------------------------------ */
-    ctx.font = this.font;
+    /* text */
+    ctx.font = (this.fontWeight ? this.fontWeight + " " : "") + this.font; // NEW
     ctx.textBaseline = "middle";
     ctx.textAlign = "center";
 
     const centerY = H / 2;
-    const baseY =
-      centerY - (this._offset % (this._lineHeight * this.items.length));
+    const offsetMod = this._offset % (this._lineHeight * this.items.length);
+    const baseY = centerY - offsetMod;
 
     const now = ts || performance.now();
     let zoomP = 0;
@@ -233,7 +217,6 @@ export class Reeler {
     )},${a})`;
   }
 
-  /* easing ------------------------------------------------------------ */
   _easeOutCubic(t) {
     return 1 - Math.pow(1 - t, 3);
   }
