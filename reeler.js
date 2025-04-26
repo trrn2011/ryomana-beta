@@ -1,10 +1,12 @@
-// reeler.js – vertical roulette / reel class  (v3.8R9  — add fontWeight option)
+// reeler.js – vertical roulette / reel class  (v3.8R10  — spinTo(label) support)
 // -----------------------------------------------------------------------------
 //  SUMMARY (2025‑04‑25)
-//   • スクロール方向は固定で『上 → 下』（TOP → BOTTOM）。
-//   • NEW: `fontWeight` オプションを追加。
-//       - 例: `fontWeight: 'bold'`, `fontWeight: 600`, `fontWeight: 'normal'`
-//       - ctx.font には  "<weight> <font>" 形式で反映。
+//   • Scroll direction is fixed TOP → BOTTOM.
+//   • NEW Feature: spinTo(label, opts)
+//       Spin so that the first item matching `label` ends up in the centre.
+//       – Example: reel.spinTo("+57 kg", {rotations:8});
+//   • spin(index, opts) continues to accept a numeric index (0‑based).
+//   • No other behaviour changed (linear deceleration, highlight,...)
 // -----------------------------------------------------------------------------
 export class Reeler {
   constructor(canvasSel, items, opts = {}) {
@@ -14,69 +16,65 @@ export class Reeler {
         : canvasSel;
     this.ctx = this.canvas.getContext("2d");
 
-    // Data & options ----------------------------------------------------
+    /* options -------------------------------------------------------- */
     this.items = items;
     this.font = opts.font || '120px "Noto Sans JP", sans-serif';
-    this.fontWeight = opts.fontWeight || ""; // ← NEW
     this.colors = opts.colors || ["#41ACF0", "#D793FF"];
     this.bg = opts.bg || "#05193C";
-    this.speed = opts.speed || 1500; // px/s (loop speed)
+    this.speed = opts.speed || 1500; // px / s
+    this.fontWeight = opts.fontWeight ?? null; // NEW from v3.8R9
 
     this.fadeOutAlpha = opts.fadeOutAlpha ?? 0.2;
     this.zoomScale = opts.zoomScale || 1.8;
     this.lineSpacing = opts.lineSpacing || 1.25;
-
-    // highlight timing
-    this.highlightDelay = opts.highlightDelay || 400; // ms
-    this.highlightAnimDuration = opts.highlightAnimDuration || 1200; // ms
-
-    // vignette
+    this.highlightDelay = opts.highlightDelay || 400;
+    this.highlightAnimDuration = opts.highlightAnimDuration || 1200;
     this.fadeGradientColor = opts.fadeGradientColor || this.bg;
     this.fadeGradientAlpha = opts.fadeGradientAlpha || 0.6;
     this.fadeGradientPower = opts.fadeGradientPower || 1.0;
 
-    // Internal state ----------------------------------------------------
+    /* state ---------------------------------------------------------- */
     this._mode = "loop";
-    this._prevTS = null;
     this._offset = 0;
-
-    // spin params
     this._targetIdx = 0;
     this._spinStart = null;
     this._spinT = 0;
     this._accel = 0;
     this._spinDist = 0;
-
-    // Pause & highlight
     this._pauseStart = null;
     this._highlightStart = null;
+    this._prevTS = null;
 
-    // Init --------------------------------------------------------------
     this._resize();
     window.addEventListener("resize", () => this._resize());
     this.startLoop();
   }
 
-  /* Public API --------------------------------------------------------- */
+  /* -------------------------- PUBLIC API --------------------------- */
   startLoop(speedPxPerSec) {
     if (speedPxPerSec) this.speed = speedPxPerSec;
     this._mode = "loop";
     this._prevTS = null;
-    this._loopRAF ||= requestAnimationFrame((ts) => this._tick(ts));
+    this._raf ||= requestAnimationFrame((ts) => this._tick(ts));
   }
-
   stopLoop() {
     this._mode = "idle";
   }
 
+  /**
+   * Spin to a numeric index (0‑based).
+   */
   spin(targetIndex = null, { rotations = 6 } = {}) {
-    this._targetIdx =
-      targetIndex == null
-        ? Math.floor(Math.random() * this.items.length)
-        : targetIndex % this.items.length;
+    if (targetIndex == null) {
+      this._targetIdx = Math.floor(Math.random() * this.items.length);
+    } else {
+      this._targetIdx =
+        ((targetIndex % this.items.length) + this.items.length) %
+        this.items.length;
+    }
 
-    this._spinDist =
-      (rotations * this.items.length + this._targetIdx) * this._lineHeight;
+    const cycle = this.items.length * this._lineHeight;
+    this._spinDist = rotations * cycle + this._targetIdx * this._lineHeight;
 
     const v0 = this.speed;
     this._accel = (v0 * v0) / (2 * this._spinDist);
@@ -86,35 +84,45 @@ export class Reeler {
     this._mode = "spin";
   }
 
-  onStop(idx) {}
+  /**
+   * Spin so that the row whose text === label is selected.
+   * Returns true if label found, false otherwise.
+   */
+  spinTo(label, opts = {}) {
+    const idx = this.items.indexOf(label);
+    if (idx === -1) return false;
+    this.spin(idx, opts);
+    return true;
+  }
 
-  /* Private helpers ---------------------------------------------------- */
+  onStop(idx) {
+    /* optional callback */
+  }
+
+  /* ------------------------ INTERNALS ------------------------------ */
   _resize() {
     this.canvas.width = window.innerWidth;
     this.canvas.height = window.innerHeight;
-
-    this.ctx.font = (this.fontWeight ? this.fontWeight + " " : "") + this.font; // NEW
+    const weight = this.fontWeight ? `${this.fontWeight} ` : "";
+    this.ctx.font = weight + this.font;
     const m = this.ctx.measureText("Hg");
     this._fontHeight = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
     this._lineHeight = this._fontHeight * this.lineSpacing;
   }
 
   _tick(ts) {
-    if (!this._prevTS) this._prevTS = ts;
+    if (this._prevTS == null) this._prevTS = ts;
     const dt = (ts - this._prevTS) / 1000;
 
-    const cycle = this._lineHeight * this.items.length;
     switch (this._mode) {
       case "loop":
         this._offset += this.speed * dt;
-        this._offset %= cycle;
         break;
       case "spin":
-        if (!this._spinStart) this._spinStart = ts;
+        if (this._spinStart == null) this._spinStart = ts;
         const t = (ts - this._spinStart) / 1000;
         if (t <= this._spinT) {
-          const s = this.speed * t - 0.5 * this._accel * t * t;
-          this._offset = s;
+          this._offset = this.speed * t - 0.5 * this._accel * t * t;
         } else {
           this._offset = this._spinDist;
           this._mode = "pause";
@@ -128,50 +136,52 @@ export class Reeler {
         }
         break;
       case "highlight":
+        // nothing
         break;
     }
 
-    this._draw(ts);
+    const cycle = this.items.length * this._lineHeight;
+    const offsetMod = ((this._offset % cycle) + cycle) % cycle;
+    this._draw(ts, offsetMod);
     this._prevTS = ts;
     if (this._mode !== "idle")
-      this._loopRAF = requestAnimationFrame((t) => this._tick(t));
+      this._raf = requestAnimationFrame((t) => this._tick(t));
   }
 
-  _draw(ts) {
+  _draw(ts, offsetMod) {
     const { width: W, height: H } = this.canvas;
     const ctx = this.ctx;
     ctx.fillStyle = this.bg;
     ctx.fillRect(0, 0, W, H);
 
-    /* vignette */
+    /* gradient vignette */
     if (this.fadeGradientAlpha > 0) {
-      const gradTop = ctx.createLinearGradient(0, 0, 0, H / 2);
-      gradTop.addColorStop(
+      const gTop = ctx.createLinearGradient(0, 0, 0, H / 2);
+      gTop.addColorStop(
         0,
         this._rgba(this.fadeGradientColor, this.fadeGradientAlpha)
       );
-      gradTop.addColorStop(1, this._rgba(this.fadeGradientColor, 0));
-      ctx.fillStyle = gradTop;
+      gTop.addColorStop(1, this._rgba(this.fadeGradientColor, 0));
+      ctx.fillStyle = gTop;
       ctx.fillRect(0, 0, W, H / 2);
-      const gradBot = ctx.createLinearGradient(0, H / 2, 0, H);
-      gradBot.addColorStop(0, this._rgba(this.fadeGradientColor, 0));
-      gradBot.addColorStop(
+      const gBot = ctx.createLinearGradient(0, H / 2, 0, H);
+      gBot.addColorStop(0, this._rgba(this.fadeGradientColor, 0));
+      gBot.addColorStop(
         1,
         this._rgba(this.fadeGradientColor, this.fadeGradientAlpha)
       );
-      ctx.fillStyle = gradBot;
+      ctx.fillStyle = gBot;
       ctx.fillRect(0, H / 2, W, H / 2);
     }
 
-    /* text */
-    ctx.font = (this.fontWeight ? this.fontWeight + " " : "") + this.font; // NEW
+    /* text rows */
+    const weight = this.fontWeight ? `${this.fontWeight} ` : "";
+    ctx.font = weight + this.font;
     ctx.textBaseline = "middle";
     ctx.textAlign = "center";
 
     const centerY = H / 2;
-    const offsetMod = this._offset % (this._lineHeight * this.items.length);
     const baseY = centerY - offsetMod;
-
     const now = ts || performance.now();
     let zoomP = 0;
     if (this._mode === "highlight") {
@@ -183,15 +193,15 @@ export class Reeler {
 
     for (let i = 0; i < this.items.length * 3; i++) {
       const idx = i % this.items.length;
-      let y =
+      const y =
         baseY + i * this._lineHeight - this.items.length * this._lineHeight;
       if (y < -this._lineHeight || y > H + this._lineHeight) continue;
 
-      let alpha = 1;
-      let scale = 1;
+      let alpha = 1,
+        scale = 1;
       if (this._mode === "highlight") {
         const inCenter = Math.abs(y - centerY) < this._lineHeight * 0.5;
-        if (inCenter && idx === this._targetIdx) {
+        if (inCenter) {
           scale = 1 + (this.zoomScale - 1) * this._easeOutCubic(zoomP);
         } else {
           alpha = this.fadeOutAlpha;
@@ -216,7 +226,6 @@ export class Reeler {
       16
     )},${a})`;
   }
-
   _easeOutCubic(t) {
     return 1 - Math.pow(1 - t, 3);
   }

@@ -49,10 +49,10 @@
       ];
 
       const reel = new Reeler("#wheel", items, {
-        font: '100px "Noto Sans JP", sans-serif',
+        font: '140px "Noto Sans JP", sans-serif',
         fontWeight: 600,
         bg: "#003D72",
-        lineSpacing: 1.5,
+        lineSpacing: 1.8,
         speed: 300,
         fadeGradientColor: "#000000", // もっと暗く
         fadeGradientAlpha: 1.0,
@@ -62,7 +62,7 @@
       });
 
       reel.startLoop(3000);
-      setTimeout(() => reel.spin(), 3000);
+      setTimeout(() => reel.spinTo("新郎高校友人"), 1000);
 
       // Callback after stop
       reel.onStop = (idx) => {
