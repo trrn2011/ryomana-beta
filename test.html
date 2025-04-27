@@ -1,168 +1,372 @@
 <!DOCTYPE html>
 <html lang="ja">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>身長クイズ｜縦スクロール版</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-  <style>
-    #marker { transition: top 0.05s linear; }
-    .tabular { font-variant-numeric: tabular-nums; }
-  </style>
-</head>
-<body class="bg-gradient-to-br from-white via-pink-50 to-pink-100 text-gray-800 min-h-screen flex flex-col items-center py-8 gap-6">
-  <h1 class="text-3xl md:text-4xl font-bold text-center">身長クイズ︰合計は何cm？</h1>
-  <p class="text-sm text-gray-600 mb-2">①新郎を発表 → ボタンを押して ②合計＆新婦を発表</p>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>身長クイズ｜縦スクロール版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+      html {
+        font-size: 120%;
+      }
+      #marker {
+        transition: top 0.05s linear;
+      }
+      .tabular {
+        font-variant-numeric: tabular-nums;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-gradient-to-br from-white via-pink-50 to-pink-100 text-gray-800 min-h-screen flex flex-col items-center py-8 gap-6"
+  >
+    <h1 class="text-3xl md:text-4xl font-bold text-center">
+      身長クイズ︰合計は何cm？
+    </h1>
+    <p class="text-sm text-gray-600 mb-2">
+      <!-- ①新郎を発表 → ボタンを押して ②合計＆新婦を発表 -->
+    </p>
 
-  <!-- ===== レイアウト ===== -->
-  <div class="flex flex-col md:flex-row gap-8 w-full max-w-5xl justify-center items-start">
-    <!-- 縦線 & 数値 -->
-    <div class="flex flex-col items-center w-full md:w-1/2">
-      <div class="relative h-[60vh] w-28 flex justify-center select-none mb-4">
-        <div class="absolute inset-y-4 left-1/2 -translate-x-1/2 w-1.5 bg-gray-500 rounded"></div>
-        <div id="labels" class="absolute inset-0"></div>
-        <div id="marker" class="absolute left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-rose-600 rounded-full shadow-md"></div>
+    <div
+      class="flex flex-col md:flex-row gap-8 w-full max-w-5xl justify-center items-start"
+    >
+      <!-- 縦線 & 数値表示 -->
+      <div class="flex flex-col items-center w-full md:w-1/2">
+        <div
+          class="relative h-[60vh] w-30 flex justify-center select-none mb-4"
+        >
+          <div
+            class="absolute inset-y-4 left-1/2 -translate-x-1/2 w-1.5 bg-gray-500 rounded"
+          ></div>
+          <div id="labels" class="absolute inset-0"></div>
+          <div
+            id="marker"
+            class="absolute left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-7 h-7 bg-rose-600 rounded-full shadow-md"
+          ></div>
+        </div>
+        <div
+          id="numberDisplay"
+          class="tabular text-6xl md:text-7xl font-extrabold text-blue-600"
+        >
+          ---
+        </div>
       </div>
-      <div id="numberDisplay" class="tabular text-6xl md:text-7xl font-extrabold text-blue-600">---</div>
+
+      <!-- 回答枠 & 予想表 -->
+      <div class="w-full md:w-1/2 flex flex-col items-stretch">
+        <div id="answers" class="space-y-2.5 mb-3.5 md:space-y-2.5">
+          <div
+            id="groomBox"
+            class="tabular w-full bg-blue-100 border border-blue-300 rounded-lg px-4 py-2.5 text-blue-700 font-semibold text-center"
+          >
+            新郎：??? cm
+          </div>
+          <div
+            id="brideBox"
+            class="tabular w-full bg-pink-100 border border-pink-300 rounded-lg px-4 py-2.5 text-pink-700 font-semibold text-center"
+          >
+            新婦：??? cm
+          </div>
+        </div>
+
+        <table
+          id="guessTable"
+          class="w-full text-center border-collapse border border-gray-300 shadow-lg rounded-2xl overflow-hidden"
+        >
+          <thead class="bg-blue-50 text-gray-700">
+            <tr>
+              <th class="p-2.5">ゲスト</th>
+              <th class="p-2.5">予想(cm)</th>
+              <th class="p-2.5">差(cm)</th>
+            </tr>
+          </thead>
+          <tbody id="guessBody" class="bg-white"></tbody>
+        </table>
+      </div>
     </div>
 
-    <!-- 回答枠 & 予想テーブル -->
-    <div class="w-full md:w-1/2 flex flex-col items-stretch">
-      <div id="answers" class="space-y-2 mb-3 md:space-y-2">
-        <div id="groomBox" class="tabular w-full bg-blue-100 border border-blue-300 rounded-lg px-4 py-2 text-blue-700 font-semibold text-center">新郎：??? cm</div>
-        <div id="brideBox" class="tabular w-full bg-pink-100 border border-pink-300 rounded-lg px-4 py-2 text-pink-700 font-semibold text-center">新婦：??? cm</div>
-      </div>
+    <button
+      id="controlBtn"
+      class="mt-7 px-11 py-4.5 bg-indigo-600 text-white rounded-full shadow-lg text-xl hover:bg-indigo-700 active:scale-95 transition"
+      disabled
+    >
+      読み込み中...
+    </button>
 
-      <table id="guessTable" class="w-full text-center border-collapse border border-gray-300 shadow-lg rounded-2xl overflow-hidden">
-        <thead class="bg-blue-50 text-gray-700"><tr><th class="p-2">ゲスト</th><th class="p-2">予想(cm)</th><th class="p-2">差(cm)</th></tr></thead>
-        <tbody id="guessBody" class="bg-white"></tbody>
-      </table>
-    </div>
-  </div>
+    <script>
+      /***** 固定設定 *****/
+      const brideHeight = 152.5;
+      const groomHeight = 180.3;
+      const durationGroom = 8000;
+      const durationTotal = 10000;
+      const shrinkBase = 0.25;
 
-  <button id="controlBtn" class="mt-6 px-10 py-4 bg-indigo-600 text-white rounded-full shadow-lg text-xl hover:bg-indigo-700 active:scale-95 transition">スタート！</button>
+      /***** スプレッドシート GViz JSON URL *****/
+      const SHEET_JSON_URL =
+        "https://docs.google.com/spreadsheets/d/1K8jmXe1OCf3PBfIvzGiRHm1db-q4JhKQRpJBgdSe_xA/gviz/tq?gid=0&tqx=out:json";
 
-<script>
-/***** 設定 *****/
-const brideHeight  = 152.5; // ← 実数
-const groomHeight  = 180.3; // ← 実数
-const durationGroom = 10000; // ms
-const durationTotal = 13000; // ms
-const shrinkBase   = 0.4;    // 通常縮小率
+      /***** DOM 要素 *****/
+      const numberDisplay = document.getElementById("numberDisplay");
+      const controlBtn = document.getElementById("controlBtn");
+      const groomBox = document.getElementById("groomBox");
+      const brideBox = document.getElementById("brideBox");
+      const guessBody = document.getElementById("guessBody");
+      const labelsDiv = document.getElementById("labels");
+      const marker = document.getElementById("marker");
 
-const guesses=[
-  {name:"みき",guess:340},
-  {name:"たかし",guess:345},
-  {name:"ゆうこ",guess:350},
-  {name:"けんじ",guess:330}
-];
+      /***** グローバル *****/
+      let guesses = [];
+      const total = brideHeight + groomHeight;
+      let minVal = 100;
+      let maxVal = 400;
+      const valToPercent = (v) => ((maxVal - v) / (maxVal - minVal)) * 100;
+      let showingRanking = false;
 
-/***** 要素 *****/
-const total = brideHeight + groomHeight;
-const numberDisplay = document.getElementById('numberDisplay');
-const controlBtn    = document.getElementById('controlBtn');
-const groomBox      = document.getElementById('groomBox');
-const brideBox      = document.getElementById('brideBox');
-const guessBody     = document.getElementById('guessBody');
-const labelsDiv     = document.getElementById('labels');
-const marker        = document.getElementById('marker');
+      /***** データ取得 *****/
+      async function fetchGuesses() {
+        const text = await fetch(SHEET_JSON_URL).then((r) => r.text());
+        const json = JSON.parse(text.slice(47, -2)); // GViz プレフィックス/サフィックス除去
+        return json.table.rows
+          .map((r) => ({
+            name: r.c[0]?.v ?? "",
+            guess: Number(r.c[1]?.v),
+          }))
+          .filter((g) => g.name && !isNaN(g.guess));
+      }
 
-/***** スケール *****/
-const minVal=100;
-const maxVal=Math.max(...guesses.map(g=>g.guess),groomHeight,total)+20;
-function valToPercent(v){return (maxVal-v)/(maxVal-minVal)*100;}
-function drawLabels(){
-  labelsDiv.innerHTML='';
-  for(let v=minVal;v<=maxVal;v+=50){
-    const d=document.createElement('div');
-    d.className='absolute tabular text-sm -translate-y-1/2 left-[calc(50%+10px)]';
-    d.style.top=`${valToPercent(v)}%`;
-    d.textContent=v;
-    labelsDiv.appendChild(d);
-  }
-  marker.style.top=`${valToPercent(minVal)}%`;
-}
-drawLabels();
+      /***** 描画ヘルパ *****/
+      function drawLabels() {
+        labelsDiv.innerHTML = "";
+        for (let v = minVal; v <= maxVal; v += 50) {
+          const d = document.createElement("div");
+          d.className =
+            "absolute tabular text-sm -translate-y-1/2 left-[calc(50%+10px)]";
+          d.style.top = `${valToPercent(v)}%`;
+          d.textContent = v;
+          labelsDiv.appendChild(d);
+        }
+        marker.style.top = `${valToPercent(minVal)}%`;
+      }
+      function renderTable() {
+        guessBody.innerHTML = "";
+        guesses.forEach((g) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td class="p-2.5 border">${g.name}</td><td class="p-2.5 border">${g.guess}</td><td class="p-2.5 border">--</td>`;
+          guessBody.appendChild(tr);
+        });
+      }
+      function calcWinner() {
+        return guesses.reduce(
+          (best, g) =>
+            !best || Math.abs(g.guess - total) < best.diff
+              ? { ...g, diff: Math.abs(g.guess - total) }
+              : best,
+          null
+        );
+      }
+      function updateDiffs() {
+        guesses.forEach((g, i) => {
+          const tr = guessBody.children[i];
+          tr.children[2].textContent = Math.abs(g.guess - total).toFixed(1);
+        });
+      }
 
-/***** 予想表 *****/
-function renderTable(){
-  guessBody.innerHTML='';
-  guesses.forEach(g=>{
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td class="p-2 border">${g.name}</td><td class="p-2 border">${g.guess}</td><td class="p-2 border">--</td>`;
-    guessBody.appendChild(tr);
-  });
-}
-renderTable();
-function calcWinner(){
-  let best=null;
-  guesses.forEach(g=>{g.diff=Math.abs(g.guess-total);if(!best||g.diff<best.diff)best=g;});
-  return best;
-}
-function updateDiffs(){
-  guessBody.querySelectorAll('tr').forEach((tr,i)=>{
-    const g=guesses[i];
-    tr.children[2].textContent=g.diff.toFixed(1);
-    if(g.isWinner) tr.classList.add('bg-yellow-200','font-bold');
-  });
-}
+      function showRanking() {
+        const rankedGuesses = [...guesses].sort(
+          (a, b) => Math.abs(a.guess - total) - Math.abs(b.guess - total)
+        );
 
-/***** アニメーション *****/
-function animateBounce({start,target,amp,duration,shrink,onDone}){
-  const t0=performance.now();
-  let lower=Math.max(minVal,Math.min(start,target)-amp);
-  let upper=Math.min(maxVal,Math.max(start,target)+amp);
-  let pos=start;
-  let dir=(target>start)?1:-1;
-  const speed=amp/35;
-  const s=shrink??shrinkBase;
-  function frame(now){
-    if(now-t0>=duration){
-      marker.style.top=`${valToPercent(target)}%`;
-      numberDisplay.textContent=`${target.toFixed(1)} cm`;
-      onDone();return;
-    }
-    pos+=dir*speed;
-    if(dir===1&&pos>=upper){dir=-1;upper=Math.max(target,upper-(upper-target)*s);} else if(dir===-1&&pos<=lower){dir=1;lower=Math.min(target,lower+(target-lower)*s);} 
-    pos=Math.max(minVal,Math.min(maxVal,pos));
-    marker.style.top=`${valToPercent(pos)}%`;
-    numberDisplay.textContent=`${pos.toFixed(1)} cm`;
-    requestAnimationFrame(frame);
-  }
-  requestAnimationFrame(frame);
-}
+        guessBody.innerHTML = "";
 
-/***** フェーズ制御 *****/
-let phase=0;
-controlBtn.addEventListener('click',()=>{
-  if(phase===0){
-    controlBtn.disabled=true;
-    animateBounce({start:minVal,target:groomHeight,amp:50,duration:durationGroom,shrink:shrinkBase,onDone:()=>{
-      groomBox.textContent=`新郎：${groomHeight.toFixed(1)} cm`;
-      groomBox.classList.add('bg-blue-200');
-      numberDisplay.classList.add('text-blue-700');
-      phase=1;
-      controlBtn.textContent='合計を発表！';
-      controlBtn.disabled=false;
-    }});
-  } else if(phase===1){
-    controlBtn.disabled=true;
-    animateBounce({start:groomHeight,target:total,amp:45,duration:durationTotal,shrink:shrinkBase*1.6,onDone:()=>{
-      brideBox.textContent=`新婦：${brideHeight.toFixed(1)} cm`;
-      brideBox.classList.add('bg-pink-200');
-      numberDisplay.classList.replace('text-blue-700','text-green-600');
-      numberDisplay.classList.add('scale-110');
-      numberDisplay.textContent=`${total.toFixed(1)} cm`;
-      const winner=calcWinner();
-      winner.isWinner=true;
-      updateDiffs();
-      confetti({particleCount:250,spread:80,origin:{y:0.6}});
-      phase=2;
-      controlBtn.textContent='完了';
-    }});
-  }
-});
-</script>
-</body>
+        rankedGuesses.forEach((g, index) => {
+          const tr = document.createElement("tr");
+          const diff = Math.abs(g.guess - total).toFixed(1);
+          const rankClass =
+            index === 0
+              ? "bg-yellow-200 font-bold"
+              : index === 1
+              ? "bg-gray-100"
+              : index === 2
+              ? "bg-orange-50"
+              : "";
+
+          tr.className = rankClass;
+          tr.innerHTML = `
+            <td class="p-2.5 border font-semibold">${index + 1}位：${
+            g.name
+          }</td>
+            <td class="p-2.5 border">${g.guess}</td>
+            <td class="p-2.5 border">${diff}</td>
+          `;
+          guessBody.appendChild(tr);
+        });
+
+        const tableHeader = document.querySelector("#guessTable thead tr");
+        tableHeader.innerHTML =
+          "<th class='p-2.5'>順位・ゲスト</th><th class='p-2.5'>予想(cm)</th><th class='p-2.5'>差(cm)</th>";
+      }
+
+      /***** バウンスアニメーション *****/
+      function animateBounce({ start, target, amp, duration, shrink, onDone }) {
+        const t0 = performance.now();
+        let lower = Math.max(minVal, Math.min(start, target) - amp);
+        let upper = Math.min(maxVal, Math.max(start, target) + amp);
+        let pos = start;
+        let dir = target > start ? 1 : -1;
+        const speed = amp / 35;
+        const s = shrink ?? shrinkBase;
+
+        // 前回表示した値を保存
+        let lastDisplayedValue = Math.round(pos * 10) / 10;
+        numberDisplay.textContent = `${lastDisplayedValue.toFixed(1)} cm`;
+
+        function frame(now) {
+          const elapsed = now - t0;
+          if (elapsed >= duration) {
+            // 最終的な値を正確に表示
+            const finalValue = Math.round(target * 10) / 10;
+            marker.style.top = `${valToPercent(finalValue)}%`;
+            numberDisplay.textContent = `${finalValue.toFixed(1)} cm`;
+            // 少し遅延させてonDoneを実行することで、アニメーションと次の処理の間に余裕を持たせる
+            requestAnimationFrame(() => {
+              onDone();
+            });
+            return;
+          }
+
+          // 進行度に応じて速度を調整（終盤で少し減速）
+          const progress = elapsed / duration;
+          const currentSpeed = speed * (1 - Math.pow(progress, 2) * 0.3);
+
+          pos += dir * currentSpeed;
+          if (dir === 1 && pos >= upper) {
+            dir = -1;
+            upper = Math.max(target, upper - (upper - target) * s);
+          }
+          if (dir === -1 && pos <= lower) {
+            dir = 1;
+            lower = Math.min(target, lower + (target - lower) * s);
+          }
+          pos = Math.max(minVal, Math.min(maxVal, pos));
+
+          // 0.1刻みで丸める
+          const roundedValue = Math.round(pos * 10) / 10;
+
+          // 前回表示した値と異なる場合のみ更新
+          if (roundedValue !== lastDisplayedValue) {
+            lastDisplayedValue = roundedValue;
+            marker.style.top = `${valToPercent(roundedValue)}%`;
+            numberDisplay.textContent = `${roundedValue.toFixed(1)} cm`;
+          }
+
+          requestAnimationFrame(frame);
+        }
+
+        requestAnimationFrame(frame);
+      }
+
+      /***** 初期ロード *****/
+      (async () => {
+        try {
+          guesses = await fetchGuesses();
+          renderTable();
+          minVal =
+            Math.min(
+              100,
+              ...guesses.map((g) => g.guess),
+              brideHeight,
+              groomHeight
+            ) - 20;
+          maxVal =
+            Math.max(
+              ...guesses.map((g) => g.guess),
+              brideHeight,
+              groomHeight,
+              total
+            ) + 20;
+          drawLabels();
+          controlBtn.disabled = false;
+          controlBtn.textContent = "スタート！";
+        } catch (err) {
+          console.error(err);
+          controlBtn.textContent = "読み込み失敗";
+        }
+      })();
+
+      /***** フェーズ制御 *****/
+      let phase = 0;
+      controlBtn.addEventListener("click", () => {
+        if (phase === 0) {
+          controlBtn.disabled = true;
+          // トランジションをスムーズにするために事前準備
+          numberDisplay.style.transition = "color 0.5s ease";
+
+          animateBounce({
+            start: minVal,
+            target: groomHeight,
+            amp: 50,
+            duration: durationGroom,
+            onDone: () => {
+              groomBox.textContent = `新郎：${groomHeight.toFixed(1)} cm`;
+              groomBox.classList.add("bg-blue-200");
+              numberDisplay.classList.add("text-blue-700");
+              phase = 1;
+              controlBtn.textContent = "合計を発表！";
+              controlBtn.disabled = false;
+            },
+          });
+        } else if (phase === 1) {
+          controlBtn.disabled = true;
+
+          animateBounce({
+            start: groomHeight,
+            target: total,
+            amp: 45,
+            duration: durationTotal,
+            shrink: shrinkBase * 1.6,
+            onDone: () => {
+              // UIの更新を一度のレンダリングサイクルにまとめる
+              requestAnimationFrame(() => {
+                brideBox.textContent = `新婦：${brideHeight.toFixed(1)} cm`;
+                brideBox.classList.add("bg-pink-200");
+                numberDisplay.classList.replace(
+                  "text-blue-700",
+                  "text-green-600"
+                );
+                numberDisplay.classList.add("scale-110");
+                numberDisplay.style.transition = "transform 0.3s ease";
+
+                // 差分の計算のみ行い、ハイライトはしない
+                updateDiffs();
+
+                phase = 2;
+                controlBtn.textContent = "順位を発表！";
+                controlBtn.disabled = false;
+              });
+            },
+          });
+        } else if (phase === 2) {
+          if (!showingRanking) {
+            showRanking();
+            controlBtn.textContent = "元の表示に戻す";
+            showingRanking = true;
+
+            // 順位発表時に紙吹雪エフェクト（金・銀・銅色）
+            confetti({
+              particleCount: 150,
+              spread: 60,
+              origin: { y: 0.6 },
+              colors: ["#FFD700", "#C0C0C0", "#CD7F32"], // 金・銀・銅色
+            });
+          } else {
+            renderTable();
+            updateDiffs();
+            controlBtn.textContent = "順位を発表！";
+            showingRanking = false;
+          }
+        }
+      });
+    </script>
+  </body>
 </html>
